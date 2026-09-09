@@ -1,36 +1,24 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# QuizForge
 
-## Getting Started
+Platform open source, self-hosted, berjalan di localhost untuk generate soal
+ujian (pilihan ganda, isian singkat, esai) dari dokumen (PDF/DOCX/PPTX/XLSX)
+menggunakan AI.
 
-First, run the development server:
+Dokumentasi lengkap: [`docs/`](./docs) — CONTEXT, ARCHITECTURE, SPEC, DESIGN.
+
+## Prasyarat
+
+- Node.js ≥ 18.18 (disarankan 20 LTS ke atas)
+- PostgreSQL berjalan lokal (native, tanpa Docker)
+
+## Menjalankan
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env      # lalu sesuaikan DATABASE_URL
+npm install
+npx prisma migrate dev    # buat schema database
+npm run dev               # http://127.0.0.1:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+> Server selalu bind ke `127.0.0.1` (dev & production) — tidak pernah
+> terekspos ke jaringan.
