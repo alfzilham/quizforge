@@ -35,8 +35,12 @@ yarn-error.log*
 # prisma generated client
 /src/generated/prisma
 
-# prisma config
-prisma7.config.ts
+# artefak instalasi skill Prisma 7 (dibuat otomatis oleh `npx prisma init`,
+# bukan bagian dari source Tahap 1) — prisma7.config.ts sendiri SENGAJA di-track
+.agents/
+.claude/
+.windsurf/
+skills-lock.json
 
 # vercel
 .vercel
@@ -44,3 +48,6 @@ prisma7.config.ts
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Graphify
+graphify-out/
