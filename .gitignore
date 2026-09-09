@@ -1,17 +1,7 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # dependencies
 /node_modules
 /.pnp
 .pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
-
-# testing
-/coverage
 
 # next.js
 /.next/
@@ -30,8 +20,23 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env — hanya .env.example yang boleh di-commit (DESIGN.md §7)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+
+# dokumen user di storage lokal — tidak pernah masuk git
+/storage/uploads/*
+!/storage/uploads/.gitkeep
+
+# prisma generated client
+/src/generated/prisma
+
+# prisma config
+prisma7.config.ts
 
 # vercel
 .vercel
