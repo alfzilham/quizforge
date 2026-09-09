@@ -1,0 +1,230 @@
+// QuizForge — Prisma schema
+// Sumber: SPEC.md §10, dengan keputusan desain yang sudah dikonfirmasi owner:
+// 1. Question ↔ Document      → join table eksplisit (DocumentQuestion)
+// 2. Tag                      → tabel terpisah, melekat di QUESTION (bukan QuestionVersion).
+//                               Rollback versi tidak boleh menghilangkan tag.
+// 3. ExamSession ↔ Question   → join table ExamSessionQuestion dengan `position`
+// 4. Cascade: Collection→Restrict; Document dihapus→Question tetap (link putus);
+//    Question→Restrict jika dipakai ExamSession manapun (termasuk completed);
+//    ExamSession dihapus→ExamAnswer Cascade.
+// 5. sourceReference          → sourceDocumentId (FK nullable) + sourceReference (teks)
+// 6. currentVersionId eksplisit (mendukung rollback), bukan versi tertinggi otomatis.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────── Enums ───────────────────────────
+
+enum QuestionType {
+  MULTIPLE_CHOICE @map("multiple_choice")
+  SHORT_ANSWER    @map("short_answer")
+  ESSAY           @map("essay")
+}
+
+enum Difficulty {
+  EASY   @map("easy")
+  MEDIUM @map("medium")
+  HARD   @map("hard")
+}
+
+enum DocumentStatus {
+  PROCESSING @map("processing")
+  READY      @map("ready")
+  FAILED     @map("failed")
+}
+
+enum FileType {
+  PDF  @map("pdf")
+  DOCX @map("docx")
+  PPTX @map("pptx")
+  XLSX @map("xlsx")
+}
+
+enum ExamStatus {
+  IN_PROGRESS @map("in_progress")
+  COMPLETED   @map("completed")
+}
+
+enum VersionAuthor {
+  MANUAL_EDIT   @map("manual_edit")
+  AI_GENERATE   @map("ai_generate")
+  AI_REGENERATE @map("ai_regenerate")
+}
+
+// ─────────────────────────── Models ───────────────────────────
+
+/// Folder pengelompokan dokumen. Soal mewarisi collection dari dokumen asalnya.
+model Collection {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  documents Document[]
+  questions Question[]
+}
+
+/// File yang diupload user + hasil parsing.
+model Document {
+  id               String         @id @default(cuid())
+  collectionId     String
+  originalFilename String
+  /// Nama random/hashed di storage/uploads — nama asli user tidak pernah jadi path (DESIGN.md §7).
+  storedFilename   String         @unique
+  fileType         FileType
+  status           DocumentStatus @default(PROCESSING)
+  errorMessage     String?
+  /// Teks + metadata referensi (halaman/section/sheet). Terisi setelah parsing sukses.
+  parsedContent    Json?
+  createdAt        DateTime       @default(now())
+
+  collection     Collection         @relation(fields: [collectionId], references: [id], onDelete: Restrict)
+  questions      DocumentQuestion[]
+  /// Versi soal yang mereferensikan dokumen ini sebagai sumber.
+  /// SetNull saat dokumen dihapus: histori versi tetap ada, link sumber putus.
+  versionSources QuestionVersion[]  @relation("VersionSourceDocument")
+
+  @@index([collectionId])
+  @@index([status])
+}
+
+/// Join table Question ↔ Document — soal bisa bersumber dari banyak dokumen.
+model DocumentQuestion {
+  documentId String
+  questionId String
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@id([documentId, questionId])
+}
+
+/// Satu soal di Question Bank. Konten hidup di QuestionVersion;
+/// Question memegang identitas, versi aktif, dan metadata organisasi (tag, collection).
+model Question {
+  id           String       @id @default(cuid())
+  collectionId String
+  type         QuestionType
+  /// Versi aktif saat ini (eksplisit — mendukung rollback ke versi lama).
+  currentVersionId String?  @unique
+  createdAt        DateTime @default(now())
+
+  collection     Collection            @relation(fields: [collectionId], references: [id], onDelete: Restrict)
+  currentVersion QuestionVersion?      @relation("QuestionCurrentVersion", fields: [currentVersionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  versions       QuestionVersion[]     @relation("QuestionVersions")
+  documents      DocumentQuestion[]
+  tags           QuestionTag[]
+  examSessions   ExamSessionQuestion[]
+  answers        ExamAnswer[]
+
+  @@index([collectionId])
+  @@index([type])
+}
+
+/// Satu versi dari sebuah soal. Setiap edit manual / regenerate membuat versi baru;
+/// versi lama tidak pernah dihapus (histori + rollback).
+model QuestionVersion {
+  id            String        @id @default(cuid())
+  questionId    String
+  versionNumber Int
+  text          String        @db.Text
+  /// Khusus MC: [{ text, isCorrect, explanation }]. Null untuk isian singkat/esai.
+  options       Json?
+  correctAnswer String        @db.Text
+  explanation   String?       @db.Text
+  difficulty    Difficulty
+  /// Referensi sumber: dokumen + label lokasi (mis. "Hal. 12", "Slide 5", "Sheet1 baris 3").
+  /// SetNull jika dokumen sumber dihapus.
+  sourceDocumentId String?
+  sourceReference  String?
+  createdBy        VersionAuthor
+  createdAt        DateTime      @default(now())
+
+  question       Question  @relation("QuestionVersions", fields: [questionId], references: [id], onDelete: Cascade)
+  sourceDocument Document? @relation("VersionSourceDocument", fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+  currentOf      Question? @relation("QuestionCurrentVersion")
+
+  @@unique([questionId, versionNumber])
+  @@index([questionId])
+}
+
+/// Tag bebas untuk organisasi bank soal (SPEC.md §5).
+model Tag {
+  id        String   @id @default(cuid())
+  /// Dinormalisasi (trim + lowercase) di layer aplikasi sebelum upsert.
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  questions QuestionTag[]
+}
+
+/// Join table Question ↔ Tag — melekat di Question, bukan versi.
+model QuestionTag {
+  questionId String
+  tagId      String
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  tag      Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([questionId, tagId])
+}
+
+/// Satu sesi pengerjaan ujian (SPEC.md §7).
+model ExamSession {
+  id           String     @id @default(cuid())
+  timerEnabled Boolean    @default(false)
+  /// Durasi total sesi dalam detik (jika timer aktif).
+  timerDurationSeconds Int?
+  /// Sisa waktu (detik) untuk pause/resume — timer di-pause saat sesi ditinggalkan.
+  timerRemainingSeconds Int?
+  status                ExamStatus @default(IN_PROGRESS)
+  startedAt             DateTime   @default(now())
+  completedAt           DateTime?
+
+  questions ExamSessionQuestion[]
+  answers   ExamAnswer[]
+
+  @@index([status])
+}
+
+/// Join table ExamSession ↔ Question dengan urutan pengerjaan (navigasi linear).
+model ExamSessionQuestion {
+  examSessionId String
+  questionId    String
+  /// Urutan soal dalam sesi (1-based).
+  position      Int
+
+  examSession ExamSession @relation(fields: [examSessionId], references: [id], onDelete: Cascade)
+  /// Restrict: soal yang pernah dipakai di sesi (termasuk completed) tidak bisa dihapus —
+  /// ExamAnswer adalah bukti riwayat. Hapus dulu ExamSession-nya jika perlu.
+  question    Question    @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  @@id([examSessionId, questionId])
+  @@index([examSessionId, position])
+}
+
+/// Jawaban per soal dalam satu sesi (auto-save = upsert per examSessionId+questionId).
+model ExamAnswer {
+  id            String   @id @default(cuid())
+  examSessionId String
+  questionId    String
+  userAnswer    String   @db.Text
+  /// Hasil grading rule-based (MC / isian singkat).
+  isCorrect Boolean?
+  /// Hasil AI-grading (esai).
+  aiScore    Float?
+  aiFeedback String? @db.Text
+  /// Terakhir kali jawaban disimpan (auto-save).
+  answeredAt DateTime @default(now()) @updatedAt
+
+  examSession ExamSession @relation(fields: [examSessionId], references: [id], onDelete: Cascade)
+  question    Question    @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  @@unique([examSessionId, questionId])
+  @@index([questionId])
+}
