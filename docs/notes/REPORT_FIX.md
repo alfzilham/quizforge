@@ -140,3 +140,35 @@ Commit: `f51e1f6` — "fix: samakan focus ring skip-link dengan sidebar".
 Input Validation tetap PASS dan tidak berubah (belum ada endpoint API —
 validasi MIME/magic-byte/Zod wajib diaudit ulang di Tahap 2, sesuai catatan
 audit). Skema Prisma dan keputusan desain final tidak disentuh.
+
+---
+
+## 7. Keputusan Final Owner — Tahap 1 resmi ditutup
+
+Berdasarkan hasil re-audit Codex, owner memutuskan exception **R-1
+(`deepmerge-ts@7.1.5`, 3 High)** sebagai berikut:
+
+**Status: DITERIMA sebagai accepted risk untuk saat ini (bukan ditutup
+selamanya).**
+
+Alasan:
+- Dev-time only — hanya reachable via Prisma CLI (`@prisma/config`) saat
+  me-load `prisma7.config.ts`, bukan via runtime aplikasi.
+- Tidak reachable dari layer HTTP — tidak ada endpoint API yang bisa
+  memicu code path ini.
+- Input yang di-merge adalah file config lokal yang tepercaya, bukan input
+  attacker — recursive object graph dari pihak luar tidak mungkin masuk.
+- Shell access = kontrol penuh: siapa pun yang bisa menulis file config
+  crafted sudah memiliki akses penuh ke mesin; DoS lokal via mekanisme ini
+  bukan threat yang realistis untuk konteks single-user localhost.
+
+Syarat:
+- **Wajib ditinjau ulang di setiap milestone/tahap berikutnya**, khususnya
+  apabila ada perubahan yang menyentuh Prisma config loading, atau apabila
+  upstream (Prisma / deepmerge-ts) merilis fix (mis. `@prisma/config` naik
+  ke `deepmerge-ts` 8.x).
+- Entry hidup dipelihara di `docs/notes/KNOWN_RISKS.md` (R-1 sebagai entry
+  pertama) dan wajib dicek tiap tahap.
+
+**Tanggal keputusan:** 10 September 2026.
+**Tahap 1 resmi DITUTUP.** Tahap berikutnya menunggu instruksi owner.
