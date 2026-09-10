@@ -11,6 +11,48 @@
 7. Backup & restore data (export/import via UI)
 8. Pengaturan (API key, model AI, rate limit) — via `.env`, bukan UI
 
+## 1a. Dashboard
+
+Halaman pertama yang tampil saat membuka platform (route `/`). Berfungsi sebagai kilas balik aktivitas terbaru, bukan halaman aksi utama — navigasi kerja tetap lewat sidebar.
+
+### Layout
+
+Tiga section berdampingan, masing-masing menampilkan aktivitas terbaru per kategori:
+
+1. **Dokumen Terbaru**
+2. **Soal Terbaru**
+3. **Ujian Terbaru**
+
+### Header Section
+
+Setiap section menampilkan judul + badge angka total, contoh: **"Dokumen Terbaru · 12 total"**. Angka total merefleksikan jumlah keseluruhan record pada kategori tersebut (bukan hanya yang ditampilkan).
+
+### Isi Section
+
+- Menampilkan maksimal **10 item terbaru**, diurutkan dari waktu terbaru ke terlama.
+- Jika total item pada kategori lebih dari 10, tampilkan tombol **"Lihat semua"** yang mengarah ke halaman penuh kategori tersebut (Documents / Question Bank / Exams).
+- Jika kategori belum memiliki data sama sekali, tampilkan empty state yang sesuai (mis. "Belum ada dokumen — upload dokumen pertama Anda").
+
+### Field per Item
+
+| Kategori | Field yang ditampilkan |
+|---|---|
+| **Dokumen** | Nama file, status (`processing` / `ready` / `failed`), waktu upload (relatif, mis. "2 jam lalu") |
+| **Soal** | Potongan teks soal (truncated), tipe soal (MC / isian singkat / esai), nama collection asal |
+| **Ujian** | Nama sesi atau tanggal pengerjaan, skor akhir (jika sudah completed), status (`in_progress` / `completed`) |
+
+### Interaksi
+
+Setiap item dapat diklik dan mengarahkan ke halaman detail terkait:
+
+- **Dokumen** → halaman detail dokumen tersebut (`/documents/[id]`)
+- **Soal** → halaman edit soal di Question Bank (`/question-bank/[id]`)
+- **Ujian** → halaman riwayat/hasil sesi tersebut (`/exams/[id]/result`)
+
+### Sumber Data
+
+Data diambil langsung dari tabel `Document`, `Question` (beserta `QuestionVersion` aktif untuk potongan teks & tipe), dan `ExamSession` — diurutkan berdasarkan `createdAt`/`updatedAt` terbaru, dibatasi (`LIMIT 10`) per kategori, plus query `COUNT(*)` terpisah untuk badge total.
+
 ## 2. Organisasi Data
 
 - **Collection** — folder pengelompokan dokumen (mirip file manager). Soal mewarisi collection dari dokumen asalnya.
