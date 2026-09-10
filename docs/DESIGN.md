@@ -23,6 +23,7 @@
 Basis: **shadcn/ui** (dibangun di atas Radix UI primitives), di-custom styling agar konsisten dengan tema aksen platform.
 
 Komponen yang dipakai (semua dari shadcn, restyled):
+
 - Modal / Dialog
 - Dropdown Menu
 - Popover
@@ -32,6 +33,7 @@ Komponen yang dipakai (semua dari shadcn, restyled):
 - Tabs, Accordion (question bank filter/detail)
 
 ### Scrollbar Kustom
+
 Styling scrollbar tipis, rounded, warna mengikuti tema — via `::-webkit-scrollbar` (Chromium/Safari) dengan fallback properti standar untuk Firefox (`scrollbar-width`, `scrollbar-color`).
 
 ## 4. Motion
@@ -52,6 +54,7 @@ Styling scrollbar tipis, rounded, warna mengikuti tema — via `::-webkit-scroll
 Standar penuh diterapkan meski platform single-user, karena akan dipublikasikan sebagai open source dan menjadi representasi kualitas kerja.
 
 Checklist wajib per fitur UI baru:
+
 - [ ] Kontras warna teks/background memenuhi rasio minimum AA (4.5:1 teks normal, 3:1 teks besar/UI component)
 - [ ] Semua elemen interaktif bisa dioperasikan penuh via keyboard (Tab, Enter, Escape, Arrow keys sesuai konteks)
 - [ ] Focus indicator terlihat jelas di semua elemen fokusable (tidak dihilangkan oleh custom styling)
@@ -65,15 +68,18 @@ Checklist wajib per fitur UI baru:
 Ini adalah kontrak keamanan yang harus dipatuhi Qwen & opencode saat implementasi, dan menjadi checklist audit formal untuk Codex sebelum rilis publik.
 
 ### Server & Jaringan
+
 - [ ] Server **hanya** bind ke `127.0.0.1`, tidak pernah `0.0.0.0`, di semua mode (dev & production build)
 - [ ] Tidak ada endpoint yang sengaja/tidak sengaja expose ke jaringan lokal/publik
 
 ### Secrets & API Key
+
 - [ ] API key (OpenRouter, Gemini) hanya ada di `.env` server-side
 - [ ] Tidak pernah dikirim ke client/browser dalam bentuk apapun (termasuk di response API, source map, atau console log)
 - [ ] `.env` masuk `.gitignore`, hanya `.env.example` (tanpa nilai asli) yang di-commit
 
 ### Upload & File Handling
+
 - [ ] Validasi MIME type **dan** magic bytes (bukan hanya cek ekstensi file)
 - [ ] Batas ukuran file maksimal ditegakkan (20MB)
 - [ ] Nama file disimpan sebagai random/hashed string — nama asli user tidak pernah dipakai langsung sebagai path filesystem
@@ -81,22 +87,27 @@ Ini adalah kontrak keamanan yang harus dipatuhi Qwen & opencode saat implementas
 - [ ] File yang diupload tidak dieksekusi sebagai kode dalam kondisi apapun
 
 ### Input Validation
+
 - [ ] Semua API routes memvalidasi input dengan Zod sebelum diproses/disimpan ke Prisma
 - [ ] Query Prisma tidak membangun raw SQL dari input user tanpa parameterisasi
 
 ### Rate Limiting
+
 - [ ] Endpoint generate soal & AI-grading dibatasi rate limit per menit (konfigurasi via `.env`)
 - [ ] Rate limit tetap berlaku walau single-user (proteksi dari bug/loop, bukan dari serangan eksternal)
 
 ### Backup/Restore
+
 - [ ] Fitur restore backup meminta konfirmasi eksplisit sebelum menimpa data existing
 - [ ] File `.zip` backup yang diimpor divalidasi strukturnya sebelum diproses (cegah zip bomb / path traversal saat ekstraksi)
 
 ### Dependency Hygiene
+
 - [ ] `npm audit` dijalankan secara berkala, dependency dengan kerentanan kritikal diperbarui/diganti
 - [ ] Minimalkan dependency yang tidak esensial
 
 ### Audit Akhir
+
 - [ ] Codex melakukan review menyeluruh terhadap seluruh checklist di atas sebagai gate sebelum project dianggap stabil untuk dipublikasikan/digunakan orang lain
 
 ## 8. Prinsip Desain Ringkas

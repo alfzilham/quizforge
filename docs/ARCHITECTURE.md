@@ -3,6 +3,7 @@
 ## Pendekatan Arsitektur
 
 **Monolit Next.js murni.** Satu aplikasi Next.js (App Router) menangani UI dan API routes dalam satu proses/repo. Dipilih karena:
+
 - Single-user, tidak butuh skalabilitas horizontal
 - Setup manual (`npm run dev`) harus tetap sederhana bagi kontributor open source
 - Satu codebase lebih mudah dikonsisten-kan lintas tiga AI coding tool (Qwen → opencode → Codex)
@@ -11,30 +12,30 @@ Tidak ada job queue (Redis/BullMQ) atau backend service terpisah di versi awal. 
 
 ## Stack Teknis
 
-| Layer | Pilihan | Alasan |
-|---|---|---|
-| Framework | Next.js 15 (App Router) + TypeScript | Satu framework fullstack, ekosistem matang |
-| ORM | Prisma | Type-safe, migrasi terkelola, cocok dengan PostgreSQL |
-| Database | PostgreSQL (native, bukan Docker) | Lebih powerful dari SQLite, konsisten dengan pengalaman sebelumnya (Neon) |
-| Styling | Tailwind CSS | Utility-first, cocok dengan shadcn/ui |
-| Komponen UI | shadcn/ui (berbasis Radix UI primitives) | Accessible by default, dicustom styling sesuai desain |
-| Ikon | Lucide | Ringan, stroke-based, native ke ekosistem shadcn |
-| Smooth scroll | Lenis | Diterapkan global di root layout |
-| Animasi | Motion (Framer Motion) untuk komponen, CSS transition untuk hover ringan | Subtle & cepat (150–200ms) |
-| Validasi | Zod | Validasi di semua API routes sebelum data masuk ke Prisma |
-| Testing unit | Vitest | Logic kritikal: parsing, grading rule-based, validasi |
-| Testing E2E | Playwright | Flow utama: upload→generate→export, upload→generate→ujian→submit |
-| AI Provider | OpenRouter (model free-tier, teks) + Gemini (vision/gambar) | Kontrol biaya, model dikonfigurasi per-task via `.env` |
-| File storage | Filesystem lokal (`./storage/uploads`) | Localhost-only, tanpa cloud storage |
+| Layer         | Pilihan                                                                  | Alasan                                                                    |
+| ------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| Framework     | Next.js 15 (App Router) + TypeScript                                     | Satu framework fullstack, ekosistem matang                                |
+| ORM           | Prisma                                                                   | Type-safe, migrasi terkelola, cocok dengan PostgreSQL                     |
+| Database      | PostgreSQL (native, bukan Docker)                                        | Lebih powerful dari SQLite, konsisten dengan pengalaman sebelumnya (Neon) |
+| Styling       | Tailwind CSS                                                             | Utility-first, cocok dengan shadcn/ui                                     |
+| Komponen UI   | shadcn/ui (berbasis Radix UI primitives)                                 | Accessible by default, dicustom styling sesuai desain                     |
+| Ikon          | Lucide                                                                   | Ringan, stroke-based, native ke ekosistem shadcn                          |
+| Smooth scroll | Lenis                                                                    | Diterapkan global di root layout                                          |
+| Animasi       | Motion (Framer Motion) untuk komponen, CSS transition untuk hover ringan | Subtle & cepat (150–200ms)                                                |
+| Validasi      | Zod                                                                      | Validasi di semua API routes sebelum data masuk ke Prisma                 |
+| Testing unit  | Vitest                                                                   | Logic kritikal: parsing, grading rule-based, validasi                     |
+| Testing E2E   | Playwright                                                               | Flow utama: upload→generate→export, upload→generate→ujian→submit          |
+| AI Provider   | OpenRouter (model free-tier, teks) + Gemini (vision/gambar)              | Kontrol biaya, model dikonfigurasi per-task via `.env`                    |
+| File storage  | Filesystem lokal (`./storage/uploads`)                                   | Localhost-only, tanpa cloud storage                                       |
 
 ## Library Parsing Dokumen
 
-| Format | Library |
-|---|---|
-| PDF | `pdf-parse` atau `unpdf` |
-| DOCX | `mammoth` |
-| PPTX | Custom extraction (PPTX = ZIP + XML) atau library `pptx-parser` |
-| XLSX | `xlsx` (SheetJS) |
+| Format | Library                                                         |
+| ------ | --------------------------------------------------------------- |
+| PDF    | `pdf-parse` atau `unpdf`                                        |
+| DOCX   | `mammoth`                                                       |
+| PPTX   | Custom extraction (PPTX = ZIP + XML) atau library `pptx-parser` |
+| XLSX   | `xlsx` (SheetJS)                                                |
 
 Semua hasil parsing disimpan sebagai teks + metadata (nomor halaman/section) — tanpa ekstraksi gambar di versi awal.
 

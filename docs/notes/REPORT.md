@@ -1,134 +1,215 @@
-# REPORT.md — Laporan Implementasi Tahap 1 QuizForge
+# Laporan Audit Keamanan & Kualitas Tahap 1
 
-**Tanggal:** 9–10 September 2026
-**Pelaksana:** Opencode (tahap Revisi/eksekusi), berdasarkan rencana Qwen (`docs/notes/QWEN_OUTPUT.md`)
-**Sumber spec:** `docs/CONTEXT.md`, `docs/ARCHITECTURE.md`, `docs/SPEC.md`, `docs/DESIGN.md`
-**Branch:** `main` → `https://github.com/alfzilham/quizforge`
-**Status:** Selesai, seluruh perubahan tercommit & terpush. Berhenti sebelum Tahap 2.
+**Auditor:** Codex  
+**Tanggal:** 10 September 2026  
+**Scope:** branch `main`, 14 commit Tahap 1 (`67e081a` sampai `14972de`)  
+**Status gate:** **FAIL** — Tahap 1 belum layak dianggap stabil.
 
----
+Catatan: file ini sudah kosong di working tree sebelum audit. Versi laporan implementasi sebelumnya tetap tersedia di Git `HEAD`.
 
-## 1. Ringkasan
+## Ringkasan
 
-Tahap 1 (fondasi project) telah diterapkan penuh ke repo nyata sesuai urutan
-Langkah 1–6 di `QWEN_OUTPUT.md`:
+| # | Area | Status | Severity tertinggi |
+|---|---|---|---|
+| 1 | Server & jaringan | **FAIL** | High |
+| 2 | Secrets & API key | **PASS** | Info |
+| 3 | Upload & file handling | **PASS** | Info |
+| 4 | Input validation API | **PASS** | Info |
+| 5 | Dependency hygiene | **FAIL** | High |
+| 6 | Schema Prisma | **PASS** | Info |
+| 7 | Aksesibilitas | **PASS** | Low |
+| 8 | Governance `.gitignore` | **WARNING** | Low/Info |
 
-- Scaffold Next.js 15 (App Router, TypeScript, Tailwind, src-dir, alias `@/*`)
-- Install dependency runtime + dev (Prisma, Zod, Lenis, Motion, dsb.)
-- Setup shadcn/ui + 4 komponen awal
-- Struktur folder sesuai `ARCHITECTURE.md` + `.gitkeep`
-- Schema Prisma lengkap (10 model, 6 enum) + `prisma7.config.ts`
-- Konfigurasi keamanan default (bind `127.0.0.1`, `.env` di-gitignore, `.env.example`)
-- Tema indigo + scrollbar kustom, root layout (theme provider, Lenis, Motion),
-  sidebar collapsible + page header + dashboard layout, 5 halaman placeholder,
-  Prisma singleton, dan README.
+## 1. Server & Jaringan — FAIL
 
-Total **14 commit granular**, semuanya sudah dipush ke `origin/main`.
+Script `dev` dan `start` meng-hardcode `127.0.0.1:3000`.
 
-**Satu langkah yang SENGAJA dilewati (dengan izin owner):** `prisma migrate dev`
-tidak dijalankan karena PostgreSQL belum terinstal di mesin ini. Sebagai
-pengganti, schema diverifikasi via `prisma validate` + `prisma generate`
-(keduanya sukses tanpa koneksi DB). Perintah migrasi siap jalan
-(`npm run db:migrate`) begitu `DATABASE_URL` di `.env` valid.
+Uji environment variable:
 
-**Tidak ada desain ulang.** Semua keputusan final di spec dipertahankan
-(schema Prisma, cascade behavior, tag di Question bukan QuestionVersion,
-sourceReference split, currentVersionId eksplisit — sesuai komentar di
-`prisma/schema.prisma`). Tiga perbaikan yang dilakukan murni adaptasi teknis
-agar kode kompilasi dengan versi dependency aktual (detail di §4).
+```powershell
+$env:HOST='0.0.0.0'; $env:PORT='4567'; npm run dev
+```
 
----
+Hasil tetap:
 
-## 2. Riwayat Commit (14 commit, urut kronologis)
+```text
+next dev -H 127.0.0.1 -p 3000
+Local: http://127.0.0.1:3000
+```
 
-| # | Hash | Pesan | Isi |
-|---|------|-------|-----|
-| 1 | `67e081a` | init: setup Next.js 15 dengan TypeScript, Tailwind, App Router | `git init`, `create-next-app@15` (via direktori temp `quizforge-tmp` karena npm menolak nama berhuruf kapital, lalu file dipindah ke root), hapus boilerplate (`page.tsx`, SVG) |
-| 2 | `544883b` | deps: tambah dependency utama (prisma, zod, lenis, motion, lucide, geist) | `@prisma/client`, `zod`, `lenis`, `next-themes`, `geist`, `motion`, `lucide-react`, `tw-animate-css`, dev: `prisma` |
-| 3 | `18c800e` | ui: setup shadcn/ui dengan tema new-york + komponen awal (button, card, separator, tooltip) | `shadcn init` + add `button card separator tooltip`, `components.json`, `src/lib/utils.ts` |
-| 4 | `2c4dd42` | struktur: buat folder layout sesuai ARCHITECTURE.md dengan .gitkeep | `src/lib/{parsing,ai,validation,grading}`, `storage/uploads`, `tests/{unit,e2e}`, `src/app/api/{documents,questions,generate,exams,grading,backup}` |
-| 5 | `59ac8d6` | prisma: tambah schema awal dengan 6 model inti + 3 join table | `prisma/schema.prisma` lengkap + `prisma7.config.ts` |
-| 6 | `33da70e` | konfigurasi: bind 127.0.0.1, env.example, gitignore lengkap | script `dev`/`start` hardcode `-H 127.0.0.1 -p 3000` + script `db:*`, `.env.example`, `.gitignore` |
-| 7 | `3d96bc0` | theme: tambah token tema indigo + scrollbar kustom | `src/app/globals.css` (token indigo light/dark, scrollbar WebKit + Firefox) |
-| 8 | `9f890a8` | layout: root layout dengan theme provider, Lenis smooth scroll, page transition | `layout.tsx`, `theme-provider.tsx`, `smooth-scroll.tsx`, `layout/page-transition.tsx` |
-| 9 | `764cd64` | layout: sidebar navigasi collapsible + page header + dashboard layout | `layout/app-sidebar.tsx`, `layout/page-header.tsx`, `(dashboard)/layout.tsx` (dengan skip-link) |
-| 10 | `fecc034` | pages: tambah placeholder untuk semua route dashboard | 5 halaman: `/`, `/documents`, `/question-bank`, `/exams`, `/settings` |
-| 11 | `3d60b81` | lib: tambah prisma singleton dan types placeholder | `src/lib/prisma.ts`, `src/types/index.ts` |
-| 12 | `a5c0c3f` | docs: tambah README | `README.md` (prasyarat, cara jalan, catatan bind 127.0.0.1) |
-| 13 | `474aece` | chore: abaikan artefak skill Prisma 7, prisma7.config.ts tetap di-track | `.gitignore`: ignore `.agents/`, `.claude/`, `.windsurf/`, `skills-lock.json`; hapus baris ignore `prisma7.config.ts` yang sudah terlanjur di-track |
-| 14 | `14972de` | fix: sesuaikan prisma singleton dengan API Prisma 7 (driver adapter pg) | `package.json` + `src/lib/prisma.ts` (detail di §4) |
+Namun uji berikut berhasil membuka jaringan:
 
----
+```powershell
+npm run dev -- -H 0.0.0.0 -p 4567
+netstat -ano | Select-String ':4567'
+```
 
-## 3. Hasil Checklist Verifikasi Tahap 1
+Hasil:
 
-| # | Poin checklist | Hasil | Bukti |
-|---|----------------|-------|-------|
-| 1 | Terminal menampilkan `Ready on http://127.0.0.1:3000` (bukan `0.0.0.0`) | **LULUS** | `npm run dev` aktual menampilkan `Local: http://127.0.0.1:3000` dan `Network: http://127.0.0.1:3000`. Script `dev`/`start` di `package.json` meng-hardcode `-H 127.0.0.1 -p 3000` |
-| 2 | `prisma studio` → 6 model inti + join table + 6 enum | **LULUS SEBAGIAN** | `studio`/`migrate` tak bisa jalan tanpa PostgreSQL. Pengganti: `prisma validate` → "schema valid 🚀"; `prisma generate` → Prisma Client 7.10.0 sukses tanpa DB. Schema: 10 model (Collection, Document, DocumentQuestion, Question, QuestionVersion, Tag, QuestionTag, ExamSession, ExamSessionQuestion, ExamAnswer) + 6 enum (QuestionType, Difficulty, DocumentStatus, FileType, ExamStatus, VersionAuthor) |
-| 3 | Sidebar 5 item, active indigo, collapse persist, tooltip icon-only | **LULUS (level kode)** | 5 item di `NAV_ITEMS`; active `bg-primary/10 text-primary`; persist via `localStorage quizforge.sidebar.collapsed`; `TooltipContent side="right"` saat collapsed. Belum uji visual browser |
-| 4 | Dark mode OS → tema otomatis, tanpa toggle | **LULUS (level kode)** | `ThemeProvider defaultTheme="system" enableSystem`; grep `setTheme\|useTheme\|ModeToggle` di `src/` kosong |
-| 5 | Keyboard nav, focus ring indigo, skip-link | **LULUS (level kode)** | Skip-link "Lewati ke konten utama" → `#konten-utama`; `focus-visible:ring-2 ring-ring`; `aria-current`, `aria-expanded`, `aria-label`, `sr-only` terpasang |
-| 6 | `git status` → `.env` & `storage/uploads/*` tak terlacak | **LULUS** | `git check-ignore` konfirmasi keduanya diabaikan; hanya `.env.example` yang di-track |
+```text
+Network: http://0.0.0.0:4567
+TCP  0.0.0.0:4567  0.0.0.0:0  LISTENING
+```
 
-**Verifikasi tambahan (di luar checklist):** `npx tsc --noEmit` bersih (0 error);
-`npm run build` sukses — 5 route + root ter-prerender sebagai static
-(`First Load JS` bersama 102 kB).
+Argumen tambahan diteruskan ke Next.js dan override argumen hardcoded. Ini melanggar requirement DESIGN.md bahwa server tidak pernah listen pada `0.0.0.0`.
 
----
+Tidak ditemukan endpoint API aktual; `src/app/api/*` hanya berisi `.gitkeep`.
 
-## 4. Perbaikan Teknis Selama Eksekusi
+## 2. Secrets & API Key — PASS
 
-Tiga perbaikan di bawah ini adalah adaptasi terhadap versi dependency aktual,
-**bukan** perubahan keputusan desain:
+Commands:
 
-1. **Motion `ease: "ease-out"` → `"easeOut"`** (`page-transition.tsx`) —
-   Motion versi baru menolak string easing gaya CSS; TypeScript error saat
-   kompilasi. Perilaku animasi (fade + slide 180ms) tidak berubah.
-2. **API Tooltip shadcn v4** (`app-sidebar.tsx`) — shadcn terbaru memakai
-   `@base-ui/react` bukan Radix: prop `delayDuration` → `delay`, dan
-   `TooltipTrigger asChild` → `render={<span />}`. Tanpa ini build gagal
-   type-check. Tampilan/perilaku tooltip sama.
-3. **Prisma 7 vs output Qwen (era Prisma 6)** —
-   - generator `prisma-client-js` → `prisma-client` + file `prisma7.config.ts`;
-   - import client dari `@/generated/prisma/client` (Prisma 7 tidak lagi
-     menyediakan barrel `index`);
-   - konstruktor `new PrismaClient()` wajib driver adapter → tambah
-     `@prisma/adapter-pg` + `pg` (+ `@types/pg`), singleton memakai
-     `new PrismaPg({ connectionString: process.env.DATABASE_URL })`.
-   
-   Pola singleton dan seluruh schema tidak diubah.
+```powershell
+git rev-list --objects --all
+git log --all --full-history --name-status -- .env .env.* 'storage/uploads/*'
+git check-ignore -v .env .env.local .env.production.local
+```
 
-**Keputusan terkait artefak tooling:** `npx prisma init` otomatis menginstal
-skill Prisma 7 (`.agents/`, `.claude/`, `.windsurf/`, `skills-lock.json`).
-Itu bukan bagian spec Tahap 1, jadi di-gitignore (commit `474aece`),
-tidak dicommit.
+Hasil:
 
----
+- Tidak ada `.env` atau variasinya dalam seluruh history Git.
+- `.env` dan variasinya di-ignore.
+- Hanya `.env.example` yang tracked.
+- Scan seluruh 14 commit tidak menemukan API key aktual, token `sk-*`, token `AIza*`, atau connection string dengan kredensial non-sample.
+- `.env.example` hanya berisi key kosong dan connection string PostgreSQL lokal contoh.
 
-## 5. Yang Belum / Catatan
+## 3. Upload & File Handling — PASS
 
-- **Migrasi DB** (`npx prisma migrate dev --name init`) menunggu PostgreSQL
-  lokal terinstal + `.env` terisi. Langkah: `cp .env.example .env`,
-  sesuaikan `DATABASE_URL`, `npm run db:migrate`.
-- **Poin 3–5 checklist** lulus verifikasi kode, belum uji visual/browser —
-  disarankan verifikasi manual atau Playwright setelah DB tersedia.
-- **File `docs/notes/REPORT.md` (file ini)** — sebelumnya kosong dan bukan
-  buatan pipeline Tahap 1 (kemungkinan dari tooling lain); kini diisi laporan
-  ini atas permintaan owner.
-- **Baris `# Graphify` / `graphify-out/` di `.gitignore`** — tambahan eksternal
-  yang muncul setelah commit konfigurasi; dipertahankan karena harmless.
-- **Flag dari Qwen (belum diputuskan):** isi Dashboard tidak didefinisikan di
-  `SPEC.md` — saat ini placeholder. Perlu ekspektasi owner sebelum Tahap 2.
+Commands:
 
----
+```powershell
+Get-ChildItem -Recurse public,storage
+Get-ChildItem -Recurse src/app/api -File
+```
 
-## 6. Saran Terpisah (tidak diterapkan, menunggu persetujuan)
+Hasil:
 
-1. **Upgrade Node.js 20 → 22 LTS.** Prisma 7 (`@prisma/streams-local`)
-   me-warning `EBADENGINE` (butuh Node ≥ 22) di Node 20.20.2 saat ini.
-   Tidak fatal, tapi layak di-upgrade sebelum Tahap 2.
-2. **Jangan upgrade ke Prisma 8 RC** (`8.0.0-rc.13` ditawarkan saat generate) —
-   tetap di 7.10.0 yang stabil.
-3. **Konten Dashboard** — putuskan sebelum Tahap 2: statistik
-   dokumen/soal/sesi, shortcut, atau aktivitas terakhir.
+- `storage/uploads/.gitkeep` ada.
+- Tidak ada `public/uploads`.
+- Tidak ada konfigurasi/symlink yang memetakan `storage/uploads` ke URL publik.
+- Tidak ada endpoint upload aktual.
+- `.gitignore` memakai `/storage/uploads/*` dengan pengecualian hanya untuk `.gitkeep`.
+
+Validasi MIME, magic bytes, ukuran 20 MB, random filename, dan path traversal belum dapat diuji karena fitur upload belum dibuat. Area ini wajib diaudit ulang pada Tahap 2.
+
+## 4. Input Validation API — PASS
+
+Tidak ada `route.ts` atau handler API. Direktori API hanya berisi `.gitkeep`. Karena tidak ada endpoint yang menerima request, tidak ada endpoint placeholder yang melewati guard Zod.
+
+## 5. Dependency Hygiene — FAIL
+
+Commands:
+
+```powershell
+npm audit --json
+npm audit --omit=dev --json
+npm ls @prisma/adapter-pg pg next zod motion lenis --depth=0
+```
+
+Hasil:
+
+```text
+Critical: 0
+High: 5
+Moderate: 1
+Low: 0
+Total: 6
+```
+
+Temuan utama:
+
+- `deepmerge-ts@7.1.5`: High, stack exhaustion pada recursive object graph.
+- `@prisma/config@7.10.0`: High melalui `deepmerge-ts`.
+- `mysql2@3.15.3`: High untuk auth plugin downgrade; juga Moderate untuk decompression-bomb DoS.
+- `postcss@8.4.31` nested di Next: High/Moderate untuk arbitrary file read/path traversal/source-map dan XSS.
+- `next@15.5.25`: Moderate melalui nested `postcss`.
+- `prisma@7.10.0`: High melalui `@prisma/config` dan `mysql2`.
+
+Versi adaptasi Prisma:
+
+```text
+@prisma/adapter-pg@7.10.0
+pg@8.23.0
+prisma@7.10.0
+@prisma/client@7.10.0
+```
+
+Tidak ada advisory npm yang dilaporkan untuk `@prisma/adapter-pg` atau `pg`. Fix otomatis npm menawarkan `prisma@6.19.3`, yaitu downgrade major, sehingga tidak boleh diterapkan otomatis. Adaptasi Motion dan Tooltip tidak menunjukkan downgrade keamanan.
+
+## 6. Schema Prisma — PASS dengan batasan verifikasi
+
+Commands:
+
+```powershell
+npx prisma validate
+npx prisma generate
+```
+
+Hasil:
+
+```text
+The schema at prisma/schema.prisma is valid
+Generated Prisma Client (7.10.0)
+```
+
+Audit independen mengonfirmasi:
+
+- `DocumentQuestion` adalah join table eksplisit.
+- Tag melekat pada `Question` melalui `QuestionTag`, bukan `QuestionVersion`.
+- `ExamSessionQuestion` memiliki `position`.
+- Relasi Question dari `ExamSessionQuestion` dan `ExamAnswer` memakai `onDelete: Restrict`.
+- Penghapusan Document memutus link `DocumentQuestion`; source version memakai `SetNull`.
+- `sourceDocumentId` dan `sourceReference` adalah dua field terpisah.
+- `currentVersionId` eksplisit dan `@unique`.
+- Relasi Collection ke Document dan Question memakai `Restrict`.
+
+Migrasi database belum dijalankan karena PostgreSQL belum tersedia; perilaku constraint aktual belum diuji di database.
+
+## 7. Aksesibilitas — PASS dengan temuan Low
+
+Evidence kode:
+
+- Sidebar memiliki `aria-label="Navigasi utama"`.
+- Link aktif memakai `aria-current="page"`.
+- Link sidebar memiliki `focus-visible:ring-2`.
+- Label icon-only tetap tersedia melalui `sr-only`.
+- Tombol collapse memiliki `aria-label` dan `aria-expanded`.
+- Button primitive memiliki `focus-visible:ring-3`.
+- `PageHeader` merender `<h1>`.
+- Skip-link menuju `#konten-utama`, dan `<main>` memiliki target tersebut.
+
+Temuan Low: skip-link memakai `focus:*` untuk state terlihat tetapi tidak memiliki class `focus-visible:ring-*` seperti link sidebar. Ia tetap memiliki indikator fokus melalui perubahan posisi/background.
+
+## 8. Governance `.gitignore` — WARNING
+
+Commands:
+
+```powershell
+git blame -L 48,55 -- .gitignore
+git show 474aece^:.gitignore
+git show 474aece -- .gitignore
+```
+
+Hasil:
+
+- Baris `# Graphify` dan `graphify-out/` masuk pada commit `474aece`.
+- Commit tersebut membahas artefak skill Prisma 7, bukan Graphify.
+- Tidak ada file Graphify di tree atau history repository.
+- Rule tersebut tampak harmless, tetapi asalnya tidak terdokumentasi dan tidak terkait project QuizForge.
+
+Severity Low/Info: owner perlu memutuskan apakah rule ini dihapus untuk menjaga governance `.gitignore`.
+
+## Verifikasi Tambahan
+
+```powershell
+npx tsc --noEmit
+```
+
+Hasil: sukses tanpa error. Tidak ada source code yang diubah oleh audit.
+
+## Keputusan Akhir
+
+Tahap 1 **FAIL sebagai security gate** sampai minimal dua isu berikut ditangani:
+
+1. Cegah forwarding argumen `-H`/`--hostname` yang dapat mengubah bind menjadi `0.0.0.0`.
+2. Tinjau dan remediasi dependency advisory, khususnya Prisma CLI/transitif dan nested PostCSS.
